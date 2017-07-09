@@ -28,11 +28,6 @@ static int WIN_HEIGHT = 600;                       // ウィンドウの高さ
 static const char *WIN_TITLE = "OpenGL Course";     // ウィンドウのタイトル
 
 static const float PI = 4.0 * std::atan(1.0);
-
-static const float animation_theta = 2.0f * PI / 10000.0f;
-bool isRotating[3] = {};
-float theta_collision[3] = {};
-
 double px = 0, py = 0; //マウスが押された位置
 
 // 上白糖用のファイル
@@ -124,13 +119,21 @@ struct RenderObject {
 	GLuint iboId;
 	GLuint textureId;
 	int bufferSize;
+
 	glm::vec3 gravity;
+	glm::vec3 initgravity;
+	glm::vec3 object_initorigin;
+	glm::vec3 object_origin;
 
 	glm::vec3 x_min_vec;
 	glm::vec3 y_min_vec;
 	glm::vec3 y_max_vec;
 
 	glm::mat4 modelMat;
+	glm::mat4 TransMat;
+	glm::mat4 RotMat;
+	glm::mat4 ScaleMat;
+
 	glm::vec3 ambiColor;
 	glm::vec3 diffColor;
 	glm::vec3 specColor;
@@ -265,7 +268,8 @@ struct RenderObject {
 
 		std::vector<Vertex> vertices;
 		std::vector<unsigned int> indices;
-		gravity = glm::vec3(0.0f, 0.0f, 0.0f);
+		initgravity = glm::vec3(0.0f, 0.0f, 0.0f);
+		object_initorigin = glm::vec3(1.0f, 1.0f, 1.0f);
 		for (int s = 0; s < shapes.size(); s++) {
 			const tinyobj::shape_t &shape = shapes[s];
 			for (int i = 0; i < shape.mesh.indices.size(); i++) {
@@ -280,8 +284,10 @@ struct RenderObject {
 						attrib.vertices[index.vertex_index * 3 + 2]
 					);
 
-					gravity += vertex.position;
-
+					initgravity += vertex.position;
+					if (length(object_initorigin) > length(vertex.position)) {
+						object_initorigin = vertex.position; // モデル座標の原点を設定
+					}
 					if (vertex.position.x < x_min_vec.x) {
 						x_min_vec = vertex.position;
 					}
@@ -312,7 +318,7 @@ struct RenderObject {
 				vertices.push_back(vertex);
 			}
 		}
-		gravity /= indices.size();
+		initgravity /= indices.size();
 
 		// Prepare VAO.
 		glGenVertexArrays(1, &vaoId);
@@ -375,8 +381,14 @@ struct RenderObject {
 
 		glm::mat4 mvMat, mvpMat, normMat;
 		mvMat = camera.viewMat * modelMat;
-		mvpMat = camera.projMat * mvMat;
+		mvpMat = camera.projMat * mvMat * TransMat * RotMat * ScaleMat;
 		normMat = glm::transpose(glm::inverse(mvMat));
+
+		// オブジェクト座標の原点を移動
+		for (int i = 0; i < 3; i++) {
+			object_origin[i] = (modelMat * TransMat * RotMat * ScaleMat * glm::vec4(object_initorigin, 1.0f))[i];
+			gravity[i] = (modelMat * TransMat * RotMat * ScaleMat * glm::vec4(initgravity, 1.0f))[i];
+		}
 
 		location = glGetUniformLocation(programId, "u_lightPos");
 		glUniform3fv(location, 1, glm::value_ptr(lightPos));
@@ -431,6 +443,12 @@ static const float SUGAR_SCALE = 4.0f;
 static const float LIVING_SCALE = 50.0f;
 static const float ANT_SCALE = 6.0f;
 
+static const float theta_animation = 2.0f * PI / 1000.0f;
+bool isRotating[3] = {};
+float theta_collision[3] = {};
+glm::vec3 rotAxis[3][2];
+
+glm::vec3 initconeHead[3];
 glm::vec3 coneHead[3];
 glm::vec3 coneBus[2]; // coneの開き角を計算するには、1つのconeを見れば十分	
 float coneAngle;
@@ -475,15 +493,16 @@ void rotatemodel(glm::mat4& cone_modelMat, glm::mat4& ant_modelMat, glm::vec3& c
 
 void gameInit() {
 	// 砂糖の位置の初期化
-	glm::vec3 trans_initsugar = glm::vec3(0.0f, 2.0f, 40.0f);
-	sugar[0].modelMat = glm::translate(glm::mat4(), trans_initsugar)*glm::scale(glm::mat4(), glm::vec3(SUGAR_SCALE, SUGAR_SCALE, SUGAR_SCALE));
-	sugar[0].gravity = trans_initsugar;
-
-	sugar[1].modelMat = sugar[0].modelMat;
-	sugar[2].modelMat = sugar[0].modelMat;
+	glm::vec3 trans_sugar = glm::vec3(0.0f, 2.0f, 40.0f);
+	int sizeof_sugar = sizeof sugar / sizeof sugar[0];
+	for (int i = 0; i < sizeof_sugar; i++) {
+		sugar[0].TransMat = glm::translate(glm::mat4(), trans_sugar);
+		sugar[0].ScaleMat = glm::scale(glm::mat4(), glm::vec3(SUGAR_SCALE, SUGAR_SCALE, SUGAR_SCALE));
+	}
 
 	// 床の初期化
-	living.modelMat = glm::rotate(PI / 2, glm::vec3(1.0f, 0.0f, 0.0f))* glm::scale(glm::mat4(), glm::vec3(LIVING_SCALE, LIVING_SCALE, 1.0f));
+	living.RotMat = glm::rotate(PI / 2, glm::vec3(1.0f, 0.0f, 0.0f));
+	living.ScaleMat = glm::scale(glm::mat4(), glm::vec3(LIVING_SCALE, LIVING_SCALE, 1.0f));
 
 	// 背景の砂糖の初期化
 	glm::vec3 trans_back[3] = {
@@ -501,8 +520,9 @@ void gameInit() {
 	for (int i = 0; i < 3; i++) {
 		for (int j = 0; j < 3; j++) {
 			glm::vec3 trans_goal = glm::vec3(-35.0f - 5 * i, 0.0f, -35.0f - 5 * j);
-			goal[3 * i + j].modelMat = glm::translate(glm::mat4(), trans_goal) * glm::scale(glm::mat4(), glm::vec3(10.0f, 2.0f, 10.0f)) * glm::rotate(-PI / 2, glm::vec3(0.0f, 0.0f, 1.0f)) * glm::scale(glm::mat4(), glm::vec3(0.5f, 0.5f, 0.5f));
-			goal[3 * i + j].gravity = trans_goal;
+			goal[3 * i + j].ScaleMat = glm::scale(glm::mat4(), glm::vec3(1.0f, 5.0f, 5.0f));
+			goal[3 * i + j].RotMat = glm::rotate(-PI / 2, glm::vec3(0.0f, 0.0f, 1.0f));
+			goal[3 * i + j].TransMat = glm::translate(glm::mat4(), trans_goal);
 		}
 	}
 
@@ -514,8 +534,9 @@ void gameInit() {
 	};
 	int sizeof_ant = sizeof ant / sizeof ant[0];
 	for (int i = 0; i < sizeof_ant; i++) {
-		ant[i].modelMat = glm::translate(trans_initant[i]) * glm::scale(glm::mat4(), glm::vec3(ANT_SCALE, ANT_SCALE, ANT_SCALE)) * glm::rotate(-PI / 2, glm::vec3(0.0f, 1.0f, 0.0f));
-		ant[i].gravity = trans_initant[i];
+		ant[i].ScaleMat = glm::scale(glm::mat4(), glm::vec3(ANT_SCALE, ANT_SCALE, ANT_SCALE));
+		ant[i].RotMat = glm::rotate(-PI / 2, glm::vec3(0.0f, 1.0f, 0.0f));
+		ant[i].TransMat = glm::translate(glm::mat4(), trans_initant[i]);
 	}
 
 	// 視野の配置
@@ -525,18 +546,20 @@ void gameInit() {
 		glm::vec3(-40.0f + 1.0f, 5.0f, 28.0f)
 	};
 	for (int i = 0; i < sizeof_ant; i++) {
-		cone[i].modelMat = glm::translate(trans_initcone[i]) * glm::scale(glm::mat4(), glm::vec3(12.0f, 12.0f, 6.0f)) * glm::rotate(-PI / 2, glm::vec3(0.0f, 1.0f, 0.0f));
-		cone[i].gravity = trans_initcone[i];
+		cone[i].ScaleMat = glm::scale(glm::mat4(), glm::vec3(6.0f, 12.0f, 12.0f));
+		//cone[i].RotMat = glm::rotate(glm::mat4(), -PI / 2, glm::vec3(0.0f, 1.0f, 0.0f));
+		//cone[i].TransMat = glm::translate(glm::mat4(), trans_initcone[i]);
+		//cone[i].gravity = trans_initcone[i] + (cone[i].RotMat * glm::vec4(cone[i].gravity, 0.0f)).xyz;
 	}
 
 	// 視野の開き角の設定
 	for (int i = 0; i < sizeof_ant; i++) {
-		coneHead[i] = cone[i].x_min_vec;
+		initconeHead[i] = cone[i].x_min_vec;
 	}
 
 	coneBus[0] = cone[0].y_max_vec;
 	coneBus[1] = cone[0].y_min_vec;
-	coneAngle = acos(dot(glm::normalize(coneBus[0] - coneHead[0]), glm::normalize(coneBus[1] - coneHead[0])));
+	coneAngle = acos(dot(glm::normalize(coneBus[0] - initconeHead[0]), glm::normalize(coneBus[1] - initconeHead[0])));
 
 	// 視野の移動
 	for (int i = 0; i < sizeof_ant; i++) {
@@ -650,7 +673,7 @@ void initializeGL() {
 
 	camera.projMat = glm::perspective(45.0f, (float)WIN_WIDTH / (float)WIN_HEIGHT, 0.1f, 1000.0f);
 	camera.viewMat = glm::lookAt(
-		glm::vec3(0.0f, 80.0f, -80.0f),
+		glm::vec3(0.0f, 80.0f, 80.0f),
 		glm::vec3(0.0f, 0.0f, 0.0f),
 		glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -772,12 +795,8 @@ void update(double prevTime[]) {
 
 		// 敵の移動
 		double nextTime = glfwGetTime();
-		std::random_device rnd;     // 非決定的な乱数生成器を生成
-		std::mt19937 mt(rnd());     //  メルセンヌ・ツイスタの32ビット版、引数は初期シード値
-		std::uniform_int_distribution<> rand(-100, 100);        // [-10, 10] 範囲の一様乱数
-
-	   // 敵が外に行かないような処理
-		for (int i = 0; i < 3; i++) {
+		// 敵が外に行かないような処理
+		for (int i = 0; i < 1; i++) {
 			if (!isRotating[i]) {
 
 				if (ant[i].gravity.x > 0.9*LIVING_SCALE || ant[i].gravity.x < -0.9*LIVING_SCALE) {
@@ -797,26 +816,66 @@ void update(double prevTime[]) {
 					nextmove[i] = glm::vec3(nextmove[i].x, nextmove[i].y, -nextmove[i].z);
 					//nextmove[i] = glm::vec3((float)rand(mt), (float)rand(mt), -nextmove[i].z);
 					//rotatemodel(cone[i].modelMat, ant[i].modelMat, cone[i].gravity, ant[i].gravity, coneHead[i], prevmove[i], nextmove[i]);
-					//isRotating[i] = true;
+					isRotating[i] = true;
+				}
+
+				// 回転軸、回転角の決定
+				if (isRotating[i]) {
+					const glm::vec3 u = glm::normalize(nextmove[i]);
+					const glm::vec3 v = glm::normalize(prevmove[i]);
+
+
+					// カメラ空間における回転量(=オブジェクト座標に置ける回転量)
+					theta_collision[i] = glm::acos(std::max(-1.0f, std::min(dot(u, v), 1.0f)));
+
+					// カメラ空間における回転軸
+					rotAxis[i][0] = glm::cross(v, u);
+					rotAxis[i][1] = glm::cross(v, u);
+
+					//// カメラ座標の情報をオブジェクト座標に変換する行列
+					//const glm::mat4 c2oMat[2] = {
+					//	glm::inverse(camera.viewMat * ant[i].modelMat),
+					//	glm::inverse(camera.viewMat * cone[i].modelMat) };
+
+					//rotAxis[i][0] = glm::vec3(c2oMat[0] * glm::vec4(rotAxis[i][0], 0.0f));
+					//rotAxis[i][1] = glm::vec3(c2oMat[1] * glm::vec4(rotAxis[i][1], 0.0f));
 				}
 			}
 
-
-
-			if (nextTime - prevTime[i] < 3.0) {
-				cone[i].modelMat = glm::translate(nextmove[i]) * cone[i].modelMat;
-				ant[i].modelMat = glm::translate(nextmove[i]) * ant[i].modelMat;
+			// 上のif文でisRotating[i]=trueになったと同時に、このif文に入ってほしいので、elseではダメ
+			if (isRotating[i]) {
+				theta_collision[i] -= theta_animation;
+				if (theta_collision[i] > 0) {
+					ant[i].RotMat = glm::rotate(glm::mat4(), theta_animation, rotAxis[i][0]) * ant[i].RotMat;
+					cone[i].RotMat = glm::rotate(glm::mat4(), theta_animation, rotAxis[i][1]) * cone[i].RotMat;
+				}
+				else {
+					isRotating[i] = false;
+				}
 			}
 			else {
-				//prevmove[i] = nextmove[i];
-				//nextmove[i] = nextmove[i] + glm::vec3((float)rand(mt) / 1000, (float)rand(mt) / 1000, (float)rand(mt) / 1000);
-				//rotatemodel(cone[i].modelMat, ant[i].modelMat, cone[i].gravity, ant[i].gravity, coneHead[i], prevmove[i], nextmove[i]);
+				//if (nextTime - prevTime[i] < 3.0) {
 
-				prevTime[i] = nextTime;
+					//}
+					//else {
+					//	//prevmove[i] = nextmove[i];
+					//	//nextmove[i] = nextmove[i] + glm::vec3((float)rand(mt) / 1000, (float)rand(mt) / 1000, (float)rand(mt) / 1000);
+					//	//rotatemodel(cone[i].modelMat, ant[i].modelMat, cone[i].gravity, ant[i].gravity, coneHead[i], prevmove[i], nextmove[i]);
+
+					//	prevTime[i] = nextTime;
+					//}
+
+				ant[i].TransMat = ant[i].TransMat * glm::translate(glm::mat4(), nextmove[i]);
+				cone[i].TransMat = cone[i].TransMat * glm::translate(glm::mat4(), nextmove[i]);
+
 			}
-			cone[i].gravity += nextmove[i];
-			ant[i].gravity += nextmove[i];
-			coneHead[i] += nextmove[i];
+			ant[1].RotMat = ant[1].RotMat * glm::rotate(glm::mat4(), theta_animation, glm::vec3(0.0f, 1.0f, 0.0f));
+			cone[1].RotMat = cone[1].RotMat * glm::rotate(glm::mat4(), theta_animation, glm::vec3(0.0f, 1.0f, 0.0f));
+
+			glm::vec3 old_dif = ant[1].object_initorigin - cone[1].object_initorigin;
+			glm::vec3 new_dif = glm::rotate(glm::mat4(), theta_animation, glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(old_dif, 1.0f);
+
+			//ant[1].TransMat = ant[1].TransMat * glm::translate(glm::mat4(), new_dif - old_dif) ;
 		}
 	}
 
@@ -852,8 +911,8 @@ void update(double prevTime[]) {
 	if (gameMode == GAME_MODE_SIO) {
 		for (int i = 0; i < 3; i++) {
 			if (length(average[i] - sugar[2].gravity) < 30.0f) {
-				ant[i].modelMat = inverse(glm::translate(nextmove[i])) * ant[i].modelMat;
-				cone[i].modelMat = inverse(glm::translate(nextmove[i])) * cone[i].modelMat;
+				ant[i].TransMat = ant[i].TransMat * inverse(glm::translate(glm::mat4(), nextmove[i]));
+				cone[i].TransMat = cone[i].TransMat * inverse(glm::translate(glm::mat4(), nextmove[i]));
 			}
 		}
 	}
@@ -876,7 +935,6 @@ void keyboard(GLFWwindow *window) {
 			sugarVelo -= sugarAcc;
 			//sugarVelo = std::max(sugarVelo, -0.5f);
 			trans_sugar = glm::vec3(0.0f, 0.0f, sugarVelo);
-			//white.modelMat = glm::translate(white.modelMat, trans);
 		}
 
 		// 下
@@ -908,8 +966,7 @@ void keyboard(GLFWwindow *window) {
 
 		int sizeof_sugar = sizeof sugar / sizeof sugar[0];
 		for (int i = 0; i < sizeof_sugar; i++) {
-			sugar[i].modelMat = glm::translate(glm::mat4(), trans_sugar) * sugar[i].modelMat;
-			sugar[i].gravity += trans_sugar;
+			sugar[i].TransMat = sugar[i].TransMat *  glm::translate(glm::mat4(), trans_sugar);
 		}
 	}
 
@@ -981,6 +1038,8 @@ int main(int argc, char **argv) {
 
 	double prevTime[3] = { glfwGetTime(),glfwGetTime(),glfwGetTime() };
 
+
+
 	// メインループ
 	while (glfwWindowShouldClose(window) == GL_FALSE) {
 		// 描画
@@ -991,6 +1050,20 @@ int main(int argc, char **argv) {
 
 		// キーボード処理
 		keyboard(window);
+
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 3; j++) {
+				coneHead[i][j] = (cone[i].modelMat * cone[i].TransMat * cone[i].RotMat * cone[i].ScaleMat * glm::vec4(initconeHead[i], 1.0f))[j];
+			}
+		}
+
+		//std::cout << "cone[1].object_origin = (" << cone[1].object_origin.x << " , " << cone[1].object_origin.y << " , " << cone[1].object_origin.z << ")" << std::endl;
+		//std::cout << "cone[2].object_origin = (" << cone[2].object_origin.x << " , " << cone[2].object_origin.y << " , " << cone[2].object_origin.z << ")" << std::endl;
+
+		std::cout << "cone[1].gravity = (" << cone[1].gravity.x << " , " << cone[1].gravity.y << " , " << cone[1].gravity.z << ")" << std::endl;
+
+
+
 
 		// 描画用バッファの切り替え
 		glfwSwapBuffers(window);
