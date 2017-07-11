@@ -1,8 +1,8 @@
 ﻿  main.cpp
 c:\graphics\src\final_report\final_report\main.cpp(30): warning C4244: '初期化中': 'double' から 'float' への変換です。データが失われる可能性があります。
 c:\graphics\src\final_report\final_report\main.cpp(30): warning C4244: '初期化中': 'double' から 'const float' への変換です。データが失われる可能性があります。
-c:\graphics\src\final_report\final_report\main.cpp(317): warning C4267: '引数': 'size_t' から 'unsigned int' に変換しました。データが失われているかもしれません。
-c:\graphics\src\final_report\final_report\main.cpp(343): warning C4267: '=': 'size_t' から 'int' に変換しました。データが失われているかもしれません。
-c:\graphics\src\final_report\final_report\main.cpp(578): warning C4244: '引数': 'double' から 'int' への変換です。データが失われる可能性があります。
+c:\graphics\src\final_report\final_report\main.cpp(306): warning C4267: '引数': 'size_t' から 'unsigned int' に変換しました。データが失われているかもしれません。
+c:\graphics\src\final_report\final_report\main.cpp(332): warning C4267: '=': 'size_t' から 'int' に変換しました。データが失われているかもしれません。
+c:\graphics\src\final_report\final_report\main.cpp(544): warning C4244: '引数': 'double' から 'int' への変換です。データが失われる可能性があります。
   Final_Report.vcxproj -> C:\graphics\src\Final_Report\x64\Debug\Final_Report.exe
   Final_Report.vcxproj -> C:\graphics\src\Final_Report\x64\Debug\Final_Report.pdb (Partial PDB)
