@@ -816,10 +816,8 @@ void update() {
 						* glm::rotate(glm::mat4(), theta_const, rotAxis[i])
 						* glm::translate(glm::mat4(), -ant[i].gravity)
 						* cone[i].modelMat;
-					if (gameMode == GAME_MODE_WHITE || gameMode == GAME_MODE_BLACK) {
 						nextSpeed[i] = glm::vec3(glm::rotate(glm::mat4(), rotCount[i] * theta_const, rotAxis[i]) * glm::vec4(prevSpeed[i], 1.0f));
 						rotCount[i]++;
-					}
 				}
 				else if (theta_collision[i] < theta_const && theta_collision[i] > 0) {
 					// ant[i]の重心を中心に残り分回転
@@ -833,9 +831,7 @@ void update() {
 						* glm::rotate(glm::mat4(), theta_collision[i], rotAxis[i])
 						* glm::translate(glm::mat4(), -ant[i].gravity)
 						* cone[i].modelMat;
-					if (gameMode == GAME_MODE_WHITE || gameMode == GAME_MODE_BLACK) {
 						nextSpeed[i] = glm::vec3(glm::rotate(glm::mat4(), theta_collision[i], rotAxis[i]) * glm::vec4(nextSpeed[i], 1.0f));
-					}
 
 					ant[i].modelMat = glm::translate(glm::mat4(), nextSpeed[i] + nextSpeed[i]) * ant[i].modelMat;
 					cone[i].modelMat = glm::translate(glm::mat4(), nextSpeed[i] + nextSpeed[i]) * cone[i].modelMat;
@@ -863,7 +859,7 @@ void update() {
 		gameMode = GAME_MODE_BLACK;
 		px = 0; py = 0;
 	}
-	if (px > 0 && px < 50 && py > 0 && py < 50) {
+	if (px > 40 && px < 120 && py > 30 && py < 90) {
 		gameMode = GAME_MODE_SIO;
 		px = 0; py = 0;
 	}
@@ -878,9 +874,9 @@ void update() {
 		}
 	}
 
-	if ((gameMode == GAME_MODE_WHITE && length(glm::vec3(-50, 0, -50) - sugar[0].gravity) < 20.0f)
-		|| (gameMode == GAME_MODE_BLACK && length(glm::vec3(-50, 0, -50) - sugar[1].gravity) < 20.0f)
-		|| (gameMode == GAME_MODE_SIO && length(glm::vec3(-50, 0, -50) - sugar[2].gravity) < 20.0f)) {
+	if ((gameMode == GAME_MODE_WHITE && length(glm::vec3(-LIVING_SCALE, 0, -LIVING_SCALE) - sugar[0].gravity) < 20.0f)
+		|| (gameMode == GAME_MODE_BLACK && length(glm::vec3(-LIVING_SCALE, 0, -LIVING_SCALE) - sugar[1].gravity) < 20.0f)
+		|| (gameMode == GAME_MODE_SIO && length(glm::vec3(-LIVING_SCALE, 0, -LIVING_SCALE) - sugar[2].gravity) < 20.0f)) {
 		gameMode = GAME_MODE_CLEAR;
 	}
 
