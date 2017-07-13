@@ -541,7 +541,7 @@ void gameInit() {
 	srand((unsigned int)time(NULL));
 	std::random_device rnd;     // 非決定的な乱数生成器を生成
 	std::mt19937 mt(rnd());     //  メルセンヌ・ツイスタの32ビット版、引数は初期シード値
-	std::uniform_int_distribution<> rand(-100.0, 100.0);        // [-10, 10] 範囲の一様乱数
+	std::uniform_int_distribution<> rand(-100.0, 100.0);        // [-100, 100] 範囲の一様乱数
 
 	for (int i = 0; i < sizeof_ant; i++) {
 		prevSpeed[i] = initfacevec;
@@ -816,8 +816,6 @@ void update() {
 						* glm::rotate(glm::mat4(), theta_const, rotAxis[i])
 						* glm::translate(glm::mat4(), -ant[i].gravity)
 						* cone[i].modelMat;
-						nextSpeed[i] = glm::vec3(glm::rotate(glm::mat4(), rotCount[i] * theta_const, rotAxis[i]) * glm::vec4(prevSpeed[i], 1.0f));
-						rotCount[i]++;
 				}
 				else if (theta_collision[i] < theta_const && theta_collision[i] > 0) {
 					// ant[i]の重心を中心に残り分回転
@@ -831,7 +829,6 @@ void update() {
 						* glm::rotate(glm::mat4(), theta_collision[i], rotAxis[i])
 						* glm::translate(glm::mat4(), -ant[i].gravity)
 						* cone[i].modelMat;
-						nextSpeed[i] = glm::vec3(glm::rotate(glm::mat4(), theta_collision[i], rotAxis[i]) * glm::vec4(nextSpeed[i], 1.0f));
 
 					ant[i].modelMat = glm::translate(glm::mat4(), nextSpeed[i] + nextSpeed[i]) * ant[i].modelMat;
 					cone[i].modelMat = glm::translate(glm::mat4(), nextSpeed[i] + nextSpeed[i]) * cone[i].modelMat;
