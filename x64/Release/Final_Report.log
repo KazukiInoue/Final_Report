@@ -1,9 +1,0 @@
-﻿  better.cpp
-better.cpp(261): warning C4267: '引数': 'size_t' から 'unsigned int' に変換しました。データが失われているかもしれません。
-better.cpp(286): warning C4267: '=': 'size_t' から 'int' に変換しました。データが失われているかもしれません。
-better.cpp(364): error C2365: 'floor': 再定義; 以前の定義は '関数' でした。
-better.cpp(403): error C2228: '.initialize' の左側はクラス、構造体、共用体でなければなりません
-better.cpp(404): error C2228: '.loadOBJ' の左側はクラス、構造体、共用体でなければなりません
-better.cpp(405): error C2228: '.buildShader' の左側はクラス、構造体、共用体でなければなりません
-better.cpp(406): error C2228: '.loadTexture' の左側はクラス、構造体、共用体でなければなりません
-better.cpp(433): error C2228: '.draw' の左側はクラス、構造体、共用体でなければなりません

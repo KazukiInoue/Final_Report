@@ -550,6 +550,7 @@ void gameInit() {
 			nextSpeed[i][j] *= SPEED / length(nextSpeed[i]);
 		}
 		//nextSpeed[i] = glm::vec3(SPEED / 1.4, 0.0f, SPEED / 1.4);
+		//nextSpeed[i] = glm::vec3(0.0f, 0.0f, SPEED);
 
 		glm::vec3 u = glm::normalize(nextSpeed[i]);
 		glm::vec3 v = glm::normalize(prevSpeed[i]);
@@ -571,7 +572,6 @@ void gameInit() {
 			* glm::rotate(glm::mat4(), inittheta, initrotAxis)
 			* glm::translate(glm::mat4(), -ant[i].gravity)
 			* cone[i].modelMat;
-		coneHead[i] = glm::vec3(cone[i].modelMat * cone[i].TransMat * cone[i].RotMat * cone[i].ScaleMat * glm::vec4(initconeHead[i], 1.0f));
 
 		// 初期化
 		isRotating[i] = false;
@@ -762,7 +762,7 @@ void resizeGL(GLFWwindow *window, int width, int height) {
 	glViewport(0, 0, renderBufferWidth, renderBufferHeight);
 
 	// カメラ行列の更新
-	float aspect = WIN_WIDTH / (float)WIN_HEIGHT;
+	float aspect = (float)WIN_WIDTH / (float)WIN_HEIGHT;
 	camera.projMat = glm::perspective(45.0f, aspect, 0.1f, 1000.0f);
 }
 
@@ -1013,7 +1013,7 @@ int main(int argc, char **argv) {
 		paintGL();
 
 		// アニメーション
-		update();
+		//update();
 
 		// キーボード処理
 		keyboard(window);
