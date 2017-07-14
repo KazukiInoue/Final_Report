@@ -5,9 +5,9 @@ Escape from ants!
 Go to the salt mountain!!
 
 ## How to play    
-* Left/Right key   : move to the left/right
-* Up/Down key      : go/come
-* WHITE/BLACK mode : click the WHITE/BLACK image
+* Left/Right key   : moving to the left/right
+* Up/Down key      : go backward/forkward
+* WHITE/BROWN mode : click above the white/brown sugar image
 * ???? mode        : click somewhere...
 
 ## Title Screen
